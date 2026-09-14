@@ -1,0 +1,83 @@
+# Development stack: hot-reloading backend/frontend, source mounted as
+# volumes, ports exposed directly (no Nginx in front) for a fast local loop.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Backend:  http://localhost:8000  (docs at /api/docs)
+# Frontend: http://localhost:3000
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-paro}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-paro}
+      POSTGRES_DB: ${POSTGRES_DB:-paro}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-paro} -d ${POSTGRES_DB:-paro}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
+      CORS_ORIGINS: http://localhost:3000
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+      OPEN_ROUTER_API_KEY: ${OPEN_ROUTER_API_KEY}
+      OPEN_ROUTER_BASE_URL: ${OPEN_ROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      OPEN_ROUTER_MODEL: ${OPEN_ROUTER_MODEL:-openai/gpt-5.6-luna}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-paro}:${POSTGRES_PASSWORD:-paro}@postgres:5432/${POSTGRES_DB:-paro}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/migrations:/app/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    entrypoint: ["./docker-entrypoint.sh"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_next_cache:/app/.next
+    depends_on:
+      - backend
+
+volumes:
+  postgres_dev_data:
+  frontend_node_modules:
+  frontend_next_cache:

@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-canvas text-ink antialiased;
+  }
+
+  * {
+    @apply border-hairline;
+  }
+
+  /* Visible keyboard focus everywhere - never suppressed. */
+  :focus-visible {
+    outline: 2px solid theme("colors.accent.DEFAULT");
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: theme("colors.accent.muted");
+    color: theme("colors.ink");
+  }
+
+  /* Slim, quiet scrollbars instead of default chrome. */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: theme("colors.hairline");
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: theme("colors.ink-faint");
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Prose styling for rendered assistant Markdown. Kept local to this
+     class (not global `prose`) so we have full control without pulling in
+     @tailwindcss/typography. */
+  .paro-markdown {
+    @apply text-[15px] leading-7 text-ink;
+  }
+  .paro-markdown > * + * {
+    @apply mt-3;
+  }
+  .paro-markdown h1,
+  .paro-markdown h2,
+  .paro-markdown h3 {
+    @apply font-medium text-ink mt-5 mb-1;
+  }
+  .paro-markdown h1 {
+    @apply text-xl;
+  }
+  .paro-markdown h2 {
+    @apply text-lg;
+  }
+  .paro-markdown h3 {
+    @apply text-base;
+  }
+  .paro-markdown ul {
+    @apply list-disc pl-5 space-y-1;
+  }
+  .paro-markdown ol {
+    @apply list-decimal pl-5 space-y-1;
+  }
+  .paro-markdown a {
+    @apply text-accent-strong underline underline-offset-2;
+  }
+  .paro-markdown blockquote {
+    @apply border-l-2 border-hairline pl-3 text-ink-muted italic;
+  }
+  .paro-markdown code {
+    @apply font-mono text-[13px] bg-surface-raised px-1.5 py-0.5 rounded;
+  }
+  .paro-markdown pre {
+    @apply font-mono text-[13px] bg-surface-raised border border-hairline rounded-lg p-3 overflow-x-auto;
+  }
+  .paro-markdown pre code {
+    @apply bg-transparent p-0;
+  }
+  .paro-markdown table {
+    @apply w-full text-sm border-collapse;
+  }
+  .paro-markdown th,
+  .paro-markdown td {
+    @apply border border-hairline px-2 py-1 text-left;
+  }
+  .paro-markdown th {
+    @apply bg-surface-raised font-medium;
+  }
+
+  /* Minimal syntax highlighting palette (rehype-highlight token classes),
+     tuned to sit inside our own code block styling rather than importing a
+     stock highlight.js theme. */
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-literal {
+    color: #98c0a6;
+  }
+  .hljs-string,
+  .hljs-attr {
+    color: #d8b989;
+  }
+  .hljs-comment {
+    color: #6b6d76;
+    font-style: italic;
+  }
+  .hljs-number,
+  .hljs-built_in {
+    color: #8fb3d9;
+  }
+  .hljs-function,
+  .hljs-title {
+    color: #ecebe4;
+  }
+
+}
