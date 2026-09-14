@@ -31,3 +31,6 @@ npm-debug.log*
 
 # --- Docker ---
 *.pid
+
+graphify-out/
+.agents/
