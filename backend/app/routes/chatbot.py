@@ -2,13 +2,13 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Literal
+from typing import List, Literal, Optional
+from starlette.concurrency import run_in_threadpool
 
 from app.utils.openrouter_client import chat_with_history
 
 
 router = APIRouter(
-    prefix="/api/chat",
     tags=["Chat"],
 )
 
@@ -19,30 +19,45 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    history: List[ChatMessage]
+    history: Optional[List[ChatMessage]] = None
+    message: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
     response: str
 
 
-@router.post("", response_model=ChatResponse)
+@router.post("/api/chat", response_model=ChatResponse)
+@router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        # Convert Pydantic models into the dictionary format
-        # expected by chat_with_history()
-        history = [
-            {
-                "role": message.role,
-                "content": message.content,
-            }
-            for message in request.history
-        ]
+        if request.history:
+            history = [
+                {
+                    "role": message.role,
+                    "content": message.content,
+                }
+                for message in request.history
+            ]
+        elif request.message:
+            history = [
+                {
+                    "role": "user",
+                    "content": request.message,
+                }
+            ]
+        else:
+            raise HTTPException(
+                status_code=422,
+                detail="Either 'history' or 'message' must be provided in the request body.",
+            )
 
-        result = chat_with_history(history)
+        result = await run_in_threadpool(chat_with_history, history)
 
         return ChatResponse(response=result)
 
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status_code=500,

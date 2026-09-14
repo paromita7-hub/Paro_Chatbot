@@ -36,21 +36,25 @@ def chat_with_history(history: list[dict[str, str]]) -> str:
         The assistant's response as a string.
     """
 
-    if not API_KEY:
+    api_key = os.getenv("OPEN_ROUTER_API_KEY") or API_KEY
+    base_url = os.getenv("OPEN_ROUTER_BASE_URL") or BASE_URL
+    model = os.getenv("OPEN_ROUTER_MODEL") or MODEL
+
+    if not api_key:
         raise RuntimeError("OPEN_ROUTER_API_KEY is not set.")
 
     if not history:
         raise ValueError("Chat history cannot be empty.")
 
-    url = f"{BASE_URL.rstrip('/')}/chat/completions"
+    url = f"{base_url.rstrip('/')}/chat/completions"
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {api_key}",
     }
 
     payload = {
-        "model": MODEL,
+        "model": model,
         "messages": history,
         "stream": False,
     }
