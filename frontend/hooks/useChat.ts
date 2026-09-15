@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 import { api, ApiRequestError } from "@/lib/api";
-import type { ChatMessage, DraftMessage } from "@/types";
+import type { ChatMessage, DraftMessage, FileAttachment } from "@/types";
 
 interface UseChatOptions {
   onFirstMessage?: (conversationId: string, firstMessage: string) => void;
@@ -25,7 +25,7 @@ export function useChat(
   const [isStreaming, setIsStreaming] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const lastUserMessageRef = useRef<string | null>(null);
+  const lastUserMessageRef = useRef<{ text: string; attachments?: FileAttachment[] } | null>(null);
 
   // Load message history from local storage when conversationId changes
   useEffect(() => {
@@ -52,13 +52,18 @@ export function useChat(
   const saveMessages = useCallback(
     (targetConversationId: string, updatedMessages: DraftMessage[]) => {
       try {
-        // Only persist non-streaming, successfully formatted messages
+        // Only persist non-streaming messages that have text content or attachments
         const toSave = updatedMessages
-          .filter((m) => !m.streaming && m.content.trim())
+          .filter(
+            (m) =>
+              !m.streaming &&
+              (m.content.trim() || (m.attachments && m.attachments.length > 0)),
+          )
           .map((m) => ({
             id: m.id,
             role: m.role,
             content: m.content,
+            attachments: m.attachments,
             isError: m.isError,
           }));
         localStorage.setItem(getStorageKey(targetConversationId), JSON.stringify(toSave));
@@ -74,13 +79,20 @@ export function useChat(
   }, []);
 
   const send = useCallback(
-    async (text: string) => {
-      if (!conversationId || !text.trim()) return;
+    async (text: string, attachments?: FileAttachment[]) => {
+      const hasText = Boolean(text && text.trim());
+      const hasAttachments = Boolean(attachments && attachments.length > 0);
+      if (!conversationId || (!hasText && !hasAttachments)) return;
 
       const isFirstMessage = messages.length === 0;
-      lastUserMessageRef.current = text;
+      lastUserMessageRef.current = { text, attachments };
 
-      const userMessage: DraftMessage = { id: uuidv4(), role: "user", content: text };
+      const userMessage: DraftMessage = {
+        id: uuidv4(),
+        role: "user",
+        content: text,
+        attachments: attachments && attachments.length > 0 ? attachments : undefined,
+      };
       const assistantId = uuidv4();
       const assistantMessage: DraftMessage = {
         id: assistantId,
@@ -91,22 +103,36 @@ export function useChat(
 
       // Construct history payload for backend POST /api/chat
       const validPriorMessages: ChatMessage[] = messages
-        .filter((m) => !m.isError && m.content.trim())
+        .filter(
+          (m) =>
+            !m.isError &&
+            (m.content.trim() || (m.attachments && m.attachments.length > 0)),
+        )
         .map((m) => ({
           role: m.role,
           content: m.content,
+          attachments: m.attachments,
         }));
 
       const history: ChatMessage[] = [
         ...validPriorMessages,
-        { role: "user", content: text },
+        {
+          role: "user",
+          content: text,
+          attachments: attachments && attachments.length > 0 ? attachments : undefined,
+        },
       ];
 
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
       setIsStreaming(true);
 
       if (isFirstMessage) {
-        options.onFirstMessage?.(conversationId, text);
+        const displayPrompt = text.trim()
+          ? text
+          : attachments && attachments.length > 0
+            ? `Attachment: ${attachments[0].name}`
+            : "New Chat";
+        options.onFirstMessage?.(conversationId, displayPrompt);
       }
 
       const controller = new AbortController();
@@ -160,9 +186,10 @@ export function useChat(
 
   const retry = useCallback(() => {
     if (!lastUserMessageRef.current) return;
+    const { text, attachments } = lastUserMessageRef.current;
     // Drop the trailing user+assistant pair before resending.
     setMessages((prev) => prev.slice(0, -2));
-    send(lastUserMessageRef.current);
+    send(text, attachments);
   }, [send]);
 
   return {
@@ -177,4 +204,3 @@ export function useChat(
 }
 
 export { ApiRequestError };
-

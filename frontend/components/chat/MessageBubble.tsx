@@ -1,14 +1,17 @@
 "use client";
 
 import { Check, Copy } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 
+import { AttachmentItem, AttachmentLightbox } from "@/components/chat/AttachmentDisplay";
 import { MarkdownContent } from "@/components/chat/MarkdownContent";
+import { getFileCategory } from "@/lib/attachments";
 import { cn } from "@/lib/utils";
-import type { DraftMessage } from "@/types";
+import type { DraftMessage, FileAttachment } from "@/types";
 
 export function MessageBubble({ message }: { message: DraftMessage }) {
   const [copied, setCopied] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<FileAttachment | null>(null);
   const isUser = message.role === "user";
 
   const handleCopy = async () => {
@@ -18,11 +21,61 @@ export function MessageBubble({ message }: { message: DraftMessage }) {
   };
 
   if (isUser) {
+    const attachments = message.attachments || [];
+    const imageAttachments = attachments.filter(
+      (a) => getFileCategory(a.name, a.type) === "image",
+    );
+    const documentAttachments = attachments.filter(
+      (a) => getFileCategory(a.name, a.type) !== "image",
+    );
+
     return (
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-lg bg-surface-raised px-4 py-2.5 text-[15px] leading-6 text-ink whitespace-pre-wrap">
-          {message.content}
+        <div className="max-w-[85%] space-y-2">
+          {/* Images Grid */}
+          {imageAttachments.length > 0 && (
+            <div
+              className={cn(
+                "grid gap-2",
+                imageAttachments.length === 1 ? "grid-cols-1" : "grid-cols-2",
+              )}
+            >
+              {imageAttachments.map((att) => (
+                <AttachmentItem
+                  key={att.id}
+                  attachment={att}
+                  variant="bubble"
+                  onImageClick={(img) => setSelectedImage(img)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Document / File list */}
+          {documentAttachments.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              {documentAttachments.map((att) => (
+                <AttachmentItem
+                  key={att.id}
+                  attachment={att}
+                  variant="bubble"
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Prompt text */}
+          {message.content && (
+            <div className="rounded-lg bg-surface-raised px-4 py-2.5 text-[15px] leading-6 text-ink whitespace-pre-wrap">
+              {message.content}
+            </div>
+          )}
         </div>
+
+        <AttachmentLightbox
+          attachment={selectedImage}
+          onClose={() => setSelectedImage(null)}
+        />
       </div>
     );
   }

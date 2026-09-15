@@ -9,6 +9,53 @@ describe("MessageBubble", () => {
     expect(screen.getByText("Hello there")).toBeInTheDocument();
   });
 
+  it("renders user message with document attachments", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "1",
+          role: "user",
+          content: "Please check this report",
+          attachments: [
+            {
+              id: "att-1",
+              name: "quarterly_report.pdf",
+              size: 204800,
+              type: "application/pdf",
+            },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText("Please check this report")).toBeInTheDocument();
+    expect(screen.getByText("quarterly_report.pdf")).toBeInTheDocument();
+    expect(screen.getByText("PDF")).toBeInTheDocument();
+    expect(screen.getByText("200 KB")).toBeInTheDocument();
+  });
+
+  it("renders user message with image attachments", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "1",
+          role: "user",
+          content: "What is this image?",
+          attachments: [
+            {
+              id: "att-2",
+              name: "screenshot.png",
+              size: 51200,
+              type: "image/png",
+              dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText("What is this image?")).toBeInTheDocument();
+    expect(screen.getByText("screenshot.png")).toBeInTheDocument();
+  });
+
   it("renders assistant messages through the markdown pipeline", () => {
     render(
       <MessageBubble

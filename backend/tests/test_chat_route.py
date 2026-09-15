@@ -53,3 +53,33 @@ def test_chat_endpoint_with_message(mock_chat):
 def test_chat_missing_body():
     response = client.post("/api/chat", json={})
     assert response.status_code == 422
+
+
+@patch("app.routes.chatbot.chat_with_history")
+def test_chat_api_endpoint_with_attachments(mock_chat):
+    mock_chat.return_value = "I analyzed the document."
+
+    payload = {
+        "history": [
+            {
+                "role": "user",
+                "content": "Please inspect this file",
+                "attachments": [
+                    {
+                        "name": "data.txt",
+                        "size": 12,
+                        "type": "text/plain",
+                        "extractedText": "sample text",
+                    }
+                ],
+            }
+        ]
+    }
+    response = client.post("/api/chat", json=payload)
+    assert response.status_code == 200
+    assert response.json() == {"response": "I analyzed the document."}
+    assert mock_chat.call_count == 1
+    call_args = mock_chat.call_args[0][0]
+    assert "[Attached Document: data.txt" in call_args[0]["content"]
+    assert "sample text" in call_args[0]["content"]
+

@@ -19,17 +19,20 @@ MODEL = os.getenv(
 )
 
 
-def chat_with_history(history: list[dict[str, str]]) -> str:
+from typing import Any, Dict, List, Union
+
+
+def chat_with_history(history: List[Dict[str, Any]]) -> str:
     """
     Send chat history to OpenRouter and return the assistant response
-    as a single string.
+    as a single string. Supports both text-only and multimodal (image_url) messages.
 
     Args:
         history: List of chat messages in the format:
             [
                 {"role": "user", "content": "Hello"},
                 {"role": "assistant", "content": "Hi!"},
-                {"role": "user", "content": "Explain Docker"},
+                {"role": "user", "content": [{"type": "text", "text": "..."}, {"type": "image_url", ...}]},
             ]
 
     Returns:
